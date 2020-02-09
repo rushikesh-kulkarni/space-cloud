@@ -98,7 +98,7 @@ func HandleCrudRead(auth *auth.Module, crud *crud.Module) http.HandlerFunc {
 		}
 
 		// function to do postProcessing on result
-		_ = auth.PostProcessMethod(actions, result)
+		_ = auth.PostProcessMethod(*actions, result)
 
 		// Give positive acknowledgement
 		w.WriteHeader(http.StatusOK)

@@ -49,19 +49,19 @@ func (m *Module) IsCreateOpAuthorised(ctx context.Context, project, dbType, col,
 }
 
 // IsReadOpAuthorised checks if the crud operation is authorised
-func (m *Module) IsReadOpAuthorised(ctx context.Context, project, dbType, col, token string, req *model.ReadRequest) (*PostProcess, int, error) {
+func (m *Module) IsReadOpAuthorised(ctx context.Context, project, dbType, col, token string, req *model.ReadRequest) (*model.PostProcess, int, error) {
 	m.RLock()
 	defer m.RUnlock()
 
 	rule, auth, err := m.authenticateCrudRequest(dbType, col, token, utils.Read)
 	if err != nil {
-		return &PostProcess{}, http.StatusUnauthorized, err
+		return nil, http.StatusUnauthorized, err
 	}
 
 	args := map[string]interface{}{"op": req.Operation, "auth": auth, "find": req.Find, "token": token}
 	actions, err := m.matchRule(ctx, project, rule, map[string]interface{}{"args": args}, auth)
 	if err != nil {
-		return &PostProcess{}, http.StatusForbidden, err
+		return nil, http.StatusForbidden, err
 	}
 
 	return actions, http.StatusOK, nil
@@ -128,8 +128,8 @@ func (m *Module) IsAggregateOpAuthorised(ctx context.Context, project, dbType, c
 	return http.StatusOK, nil
 }
 
-// PostProcessMethod to do processing on result
-func (m *Module) PostProcessMethod(postProcess *PostProcess, result interface{}) error {
+// model.PostProcessMethod to do processing on result
+func (m *Module) PostProcessMethod(postProcess model.PostProcess, result interface{}) error {
 	// Gracefully exist if the result is nil
 	if result == nil {
 		return nil
@@ -147,7 +147,7 @@ func (m *Module) PostProcessMethod(postProcess *PostProcess, result interface{})
 	}
 
 	for _, doc := range resultArr {
-		for _, field := range postProcess.postProcessAction {
+		for _, field := range postProcess.PostProcessAction {
 			// apply Action on all elements
 			switch field.Action {
 			case "force":

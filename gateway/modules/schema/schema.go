@@ -11,25 +11,24 @@ import (
 	"github.com/graphql-go/graphql/language/kinds"
 	"github.com/graphql-go/graphql/language/parser"
 	"github.com/graphql-go/graphql/language/source"
-
 	"github.com/spaceuptech/space-cloud/gateway/config"
-	"github.com/spaceuptech/space-cloud/gateway/modules/crud"
+	"github.com/spaceuptech/space-cloud/gateway/model"
 	"github.com/spaceuptech/space-cloud/gateway/utils"
 )
 
 // Schema data stucture for schema package
 type Schema struct {
 	lock               sync.RWMutex
-	SchemaDoc          schemaType
-	crud               *crud.Module
+	SchemaDoc          model.SchemaType
+	crud               model.CrudSchemaInterface
 	project            string
 	config             config.Crud
 	removeProjectScope bool
 }
 
 // Init creates a new instance of the schema object
-func Init(crud *crud.Module, removeProjectScope bool) *Schema {
-	return &Schema{SchemaDoc: schemaType{}, crud: crud, removeProjectScope: removeProjectScope}
+func Init(crud model.CrudSchemaInterface, removeProjectScope bool) *Schema {
+	return &Schema{SchemaDoc: model.SchemaType{}, crud: crud, removeProjectScope: removeProjectScope}
 }
 
 // SetConfig modifies the tables according to the schema on save
@@ -47,7 +46,7 @@ func (s *Schema) SetConfig(conf config.Crud, project string) error {
 	return nil
 }
 
-func (s *Schema) GetSchema(dbType, col string) (SchemaFields, bool) {
+func (s *Schema) GetSchema(dbType, col string) (model.SchemaFields, bool) {
 	s.lock.RLock()
 	defer s.lock.RUnlock()
 
@@ -61,7 +60,7 @@ func (s *Schema) GetSchema(dbType, col string) (SchemaFields, bool) {
 		return nil, false
 	}
 
-	fields := make(SchemaFields, len(colSchema))
+	fields := make(model.SchemaFields, len(colSchema))
 	for k, v := range colSchema {
 		fields[k] = v
 	}
@@ -79,11 +78,11 @@ func (s *Schema) parseSchema(crud config.Crud) error {
 	return nil
 }
 
-func (s *Schema) Parser(crud config.Crud) (schemaType, error) {
+func (s *Schema) Parser(crud config.Crud) (model.SchemaType, error) {
 
-	schema := make(schemaType, len(crud))
+	schema := make(model.SchemaType, len(crud))
 	for dbName, v := range crud {
-		collection := schemaCollection{}
+		collection := model.SchemaCollection{}
 		for collectionName, v := range v.Collections {
 			if v.Schema == "" {
 				continue
@@ -111,10 +110,10 @@ func (s *Schema) Parser(crud config.Crud) (schemaType, error) {
 	return schema, nil
 }
 
-func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (SchemaFields, error) {
+func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (model.SchemaFields, error) {
 	var isCollectionFound bool
 
-	fieldMap := SchemaFields{}
+	fieldMap := model.SchemaFields{}
 	for _, v := range doc.Definitions {
 		colName := v.(*ast.ObjectDefinition).Name.Value
 
@@ -127,7 +126,7 @@ func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (Sche
 
 		for _, field := range v.(*ast.ObjectDefinition).Fields {
 
-			fieldTypeStuct := SchemaFieldType{
+			fieldTypeStuct := model.SchemaFieldType{
 				FieldName: field.Name.Value,
 			}
 			if len(field.Directives) > 0 {
@@ -135,13 +134,13 @@ func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (Sche
 
 				for _, directive := range field.Directives {
 					switch directive.Name.Value {
-					case directivePrimary:
+					case model.DirectivePrimary:
 						fieldTypeStuct.IsPrimary = true
-					case directiveCreatedAt:
+					case model.DirectiveCreatedAt:
 						fieldTypeStuct.IsCreatedAt = true
-					case directiveUpdatedAt:
+					case model.DirectiveUpdatedAt:
 						fieldTypeStuct.IsUpdatedAt = true
-					case directiveDefault:
+					case model.DirectiveDefault:
 						fieldTypeStuct.IsDefault = true
 
 						for _, arg := range directive.Arguments {
@@ -154,10 +153,10 @@ func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (Sche
 						if fieldTypeStuct.Default == nil {
 							return nil, fmt.Errorf("default directive must be accompanied with value field")
 						}
-					case directiveIndex, directiveUnique:
+					case model.DirectiveIndex, model.DirectiveUnique:
 						fieldTypeStuct.IsIndex = true
-						fieldTypeStuct.IsUnique = directive.Name.Value == directiveUnique
-						fieldTypeStuct.IndexInfo = &TableProperties{Group: fieldTypeStuct.FieldName, Order: deafultIndexOrder, Sort: defaultIndexSort}
+						fieldTypeStuct.IsUnique = directive.Name.Value == model.DirectiveUnique
+						fieldTypeStuct.IndexInfo = &model.TableProperties{Group: fieldTypeStuct.FieldName, Order: model.DefaultIndexOrder, Sort: model.DefaultIndexSort}
 						for _, arg := range directive.Arguments {
 							var ok bool
 							switch arg.Name.Value {
@@ -181,9 +180,9 @@ func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (Sche
 								}
 							}
 						}
-					case directiveLink:
+					case model.DirectiveLink:
 						fieldTypeStuct.IsLinked = true
-						fieldTypeStuct.LinkedTable = &TableProperties{DBType: dbName}
+						fieldTypeStuct.LinkedTable = &model.TableProperties{DBType: dbName}
 						kind, err := getFieldType(dbName, field.Type, &fieldTypeStuct, doc)
 						if err != nil {
 							return nil, err
@@ -213,9 +212,9 @@ func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (Sche
 							return nil, errors.New("link directive must be accompanied with to and from fields")
 						}
 
-					case directiveForeign:
+					case model.DirectiveForeign:
 						fieldTypeStuct.IsForeign = true
-						fieldTypeStuct.JointTable = &TableProperties{}
+						fieldTypeStuct.JointTable = &model.TableProperties{}
 						fieldTypeStuct.JointTable.Table = strings.Split(field.Name.Value, "_")[0]
 						fieldTypeStuct.JointTable.To = "id"
 
@@ -251,7 +250,7 @@ func getCollectionSchema(doc *ast.Document, dbName, collectionName string) (Sche
 	return fieldMap, nil
 }
 
-func getFieldType(dbName string, fieldType ast.Type, fieldTypeStuct *SchemaFieldType, doc *ast.Document) (string, error) {
+func getFieldType(dbName string, fieldType ast.Type, fieldTypeStuct *model.SchemaFieldType, doc *ast.Document) (string, error) {
 	switch fieldType.GetKind() {
 	case kinds.NonNull:
 		fieldTypeStuct.IsFieldTypeRequired = true
@@ -268,18 +267,18 @@ func getFieldType(dbName string, fieldType ast.Type, fieldTypeStuct *SchemaField
 	case kinds.Named:
 		myType := fieldType.(*ast.Named).Name.Value
 		switch myType {
-		case typeString, typeEnum:
-			return typeString, nil
-		case TypeID:
-			return TypeID, nil
-		case typeDateTime:
-			return typeDateTime, nil
-		case typeFloat:
-			return typeFloat, nil
-		case typeInteger:
-			return typeInteger, nil
-		case typeBoolean:
-			return typeBoolean, nil
+		case model.TypeString, model.TypeEnum:
+			return model.TypeString, nil
+		case model.TypeID:
+			return model.TypeID, nil
+		case model.TypeDateTime:
+			return model.TypeDateTime, nil
+		case model.TypeFloat:
+			return model.TypeFloat, nil
+		case model.TypeInteger:
+			return model.TypeInteger, nil
+		case model.TypeBoolean:
+			return model.TypeBoolean, nil
 		default:
 			if fieldTypeStuct.IsLinked {
 				// Since the field is actually a link. We'll store the type as is. This type must correspond to a table or a primitive type
@@ -292,9 +291,9 @@ func getFieldType(dbName string, fieldType ast.Type, fieldTypeStuct *SchemaField
 			if err != nil {
 				return "", err
 			}
-			fieldTypeStuct.nestedObject = nestedschemaField
+			fieldTypeStuct.NestedObject = nestedschemaField
 
-			return typeObject, nil
+			return model.TypeObject, nil
 		}
 	default:
 		return "", fmt.Errorf("invalid field kind `%s` provided for field `%s`", fieldType.GetKind(), fieldTypeStuct.FieldName)

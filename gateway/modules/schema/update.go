@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/spaceuptech/space-cloud/gateway/model"
 	"github.com/spaceuptech/space-cloud/gateway/utils"
 )
 
@@ -71,7 +72,7 @@ func isFieldPresentInUpdate(field string, updateDoc map[string]interface{}) bool
 	return false
 }
 
-func (s *Schema) validateArrayOperations(col string, doc interface{}, SchemaDoc SchemaFields) error {
+func (s *Schema) validateArrayOperations(col string, doc interface{}, SchemaDoc model.SchemaFields) error {
 
 	v, ok := doc.(map[string]interface{})
 	if !ok {
@@ -108,7 +109,7 @@ func (s *Schema) validateArrayOperations(col string, doc interface{}, SchemaDoc 
 	return nil
 }
 
-func validateMathOperations(col string, doc interface{}, SchemaDoc SchemaFields) error {
+func validateMathOperations(col string, doc interface{}, SchemaDoc model.SchemaFields) error {
 
 	v, ok := doc.(map[string]interface{})
 	if !ok {
@@ -124,12 +125,12 @@ func validateMathOperations(col string, doc interface{}, SchemaDoc SchemaFields)
 
 		switch fieldValue.(type) {
 		case int:
-			if schemaDocValue.Kind != typeInteger && schemaDocValue.Kind != typeFloat {
+			if schemaDocValue.Kind != model.TypeInteger && schemaDocValue.Kind != model.TypeFloat {
 				return fmt.Errorf("invalid type received for field %s in collection %s - wanted %s got Integer", fieldKey, col, schemaDocValue.Kind)
 			}
 			return nil
 		case float32, float64:
-			if schemaDocValue.Kind != typeFloat {
+			if schemaDocValue.Kind != model.TypeFloat {
 				return fmt.Errorf("invalid type received for field %s in collection %s - wanted %s got Float", fieldKey, col, schemaDocValue.Kind)
 			}
 			return nil
@@ -141,7 +142,7 @@ func validateMathOperations(col string, doc interface{}, SchemaDoc SchemaFields)
 	return nil
 }
 
-func validateDateOperations(col string, doc interface{}, SchemaDoc SchemaFields) error {
+func validateDateOperations(col string, doc interface{}, SchemaDoc model.SchemaFields) error {
 
 	v, ok := doc.(map[string]interface{})
 	if !ok {
@@ -155,7 +156,7 @@ func validateDateOperations(col string, doc interface{}, SchemaDoc SchemaFields)
 			return fmt.Errorf("field %s from collection %s is not defined in the schema", fieldKey, col)
 		}
 
-		if schemaDocValue.Kind != typeDateTime {
+		if schemaDocValue.Kind != model.TypeDateTime {
 			return fmt.Errorf("invalid type received for field %s in collection %s - wanted %s", fieldKey, col, schemaDocValue.Kind)
 		}
 	}
@@ -163,7 +164,7 @@ func validateDateOperations(col string, doc interface{}, SchemaDoc SchemaFields)
 	return nil
 }
 
-func (s *Schema) validateSetOperation(col string, doc interface{}, SchemaDoc SchemaFields) (interface{}, error) {
+func (s *Schema) validateSetOperation(col string, doc interface{}, SchemaDoc model.SchemaFields) (interface{}, error) {
 	v, ok := doc.(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("document not of type object in collection %s", col)

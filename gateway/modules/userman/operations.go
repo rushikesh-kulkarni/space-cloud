@@ -48,7 +48,7 @@ func (m *Module) Profile(ctx context.Context, token, dbType, project, id string)
 		return http.StatusInternalServerError, nil, err
 	}
 
-	_ = m.auth.PostProcessMethod(actions, res)
+	_ = m.auth.PostProcessMethod(*actions, res)
 
 	// Delete password from user object
 	delete(res.(map[string]interface{}), "pass")
@@ -78,7 +78,7 @@ func (m *Module) Profiles(ctx context.Context, token, dbType, project string) (i
 		return http.StatusInternalServerError, nil, err
 	}
 
-	_ = m.auth.PostProcessMethod(actions, res)
+	_ = m.auth.PostProcessMethod(*actions, res)
 
 	// Delete password from user object
 	if usersArray, ok := res.([]interface{}); ok {

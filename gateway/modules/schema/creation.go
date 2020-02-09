@@ -5,19 +5,21 @@ import (
 	"errors"
 	"reflect"
 
+	"github.com/spaceuptech/space-cloud/gateway/model"
+
 	"github.com/spaceuptech/space-cloud/gateway/config"
 	"github.com/spaceuptech/space-cloud/gateway/utils"
 )
 
 type creationModule struct {
 	dbAlias, project, TableName, ColumnName, columnType string
-	currentColumnInfo, realColumnInfo                   *SchemaFieldType
+	currentColumnInfo, realColumnInfo                   *model.SchemaFieldType
 	schemaModule                                        *Schema
 	removeProjectScope                                  bool
 }
 
 // SchemaCreation creates or alters tables of sql
-func (s *Schema) SchemaCreation(ctx context.Context, dbAlias, tableName, project string, parsedSchema schemaType) error {
+func (s *Schema) SchemaCreation(ctx context.Context, dbAlias, tableName, project string, parsedSchema model.SchemaType) error {
 	dbType, err := s.crud.GetDBType(dbAlias)
 	if err != nil {
 		return err
@@ -41,7 +43,7 @@ func (s *Schema) SchemaCreation(ctx context.Context, dbAlias, tableName, project
 	return s.crud.RawBatch(ctx, dbAlias, queries)
 }
 
-func (s *Schema) generateCreationQueries(ctx context.Context, dbAlias, tableName, project string, parsedSchema schemaType, currentSchema schemaCollection) ([]string, error) {
+func (s *Schema) generateCreationQueries(ctx context.Context, dbAlias, tableName, project string, parsedSchema model.SchemaType, currentSchema model.SchemaCollection) ([]string, error) {
 	dbType, err := s.crud.GetDBType(dbAlias)
 	if err != nil {
 		return nil, err
@@ -74,15 +76,15 @@ func (s *Schema) generateCreationQueries(ctx context.Context, dbAlias, tableName
 			return nil, err
 		}
 		batchedQueries = append(batchedQueries, query)
-		currentTableInfo = SchemaFields{}
+		currentTableInfo = model.SchemaFields{}
 		for realColumnName, realColumnInfo := range realTableInfo {
-			temp := SchemaFieldType{
+			temp := model.SchemaFieldType{
 				FieldName:           realColumnInfo.FieldName,
 				IsFieldTypeRequired: realColumnInfo.IsFieldTypeRequired,
 				IsList:              realColumnInfo.IsList,
 				Kind:                realColumnInfo.Kind,
 				IsPrimary:           realColumnInfo.IsPrimary,
-				nestedObject:        realColumnInfo.nestedObject,
+				NestedObject:        realColumnInfo.NestedObject,
 			}
 			currentTableInfo[realColumnName] = &temp
 		}
